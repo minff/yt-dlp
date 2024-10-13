@@ -51,6 +51,7 @@ class FacebookIE(InfoExtractor):
                             [^/]+/posts/|
                             events/(?:[^/]+/)?|
                             groups/[^/]+/(?:permalink|posts)/|
+                            stories/|
                             watchparty/
                         )|
                     facebook:
