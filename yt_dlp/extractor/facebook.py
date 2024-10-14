@@ -995,9 +995,9 @@ class FacebookStoryIE(FacebookIE):
         },
     }]
 
-    def _extract_from_url(self, url):
+    def _real_extract(self, url):
         story_id = self._match_id(url)
-        return super()._extract_from_url(url, story_id=story_id)
+        return self._extract_from_url(url, story_id=story_id)
 
 
 class FacebookAdsIE(InfoExtractor):
