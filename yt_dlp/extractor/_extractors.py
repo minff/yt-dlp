@@ -627,6 +627,7 @@ from .facebook import (
     FacebookPluginsVideoIE,
     FacebookRedirectURLIE,
     FacebookReelIE,
+    FacebookStoryIE,
 )
 from .fancode import (
     FancodeLiveIE,

@@ -51,7 +51,6 @@ class FacebookIE(InfoExtractor):
                             [^/]+/posts/|
                             events/(?:[^/]+/)?|
                             groups/[^/]+/(?:permalink|posts)/|
-                            stories/|
                             watchparty/
                         )|
                     facebook:
@@ -476,17 +475,22 @@ class FacebookIE(InfoExtractor):
             self.report_warning(f'unable to log in: {err}')
             return
 
-    def _extract_from_url(self, url, video_id):
+    def _extract_from_url(self, url, video_id=None, story_id=None):
         webpage = self._download_webpage(
             url.replace('://m.facebook.com/', '://www.facebook.com/'), video_id)
+        if story_id:
+            # stories
+            media_selector = ('bucket', 'unified_stories', ..., ..., lambda k, v: (k == 'node' and v['id'] == story_id))
+        else:
+            media_selector = ...
 
         def extract_metadata(webpage):
             post_data = [self._parse_json(j, video_id, fatal=False) for j in re.findall(
                 r'data-sjs>({.*?ScheduledServerJS.*?})</script>', webpage)]
             post = traverse_obj(post_data, (
                 ..., 'require', ..., ..., ..., '__bbox', 'require', ..., ..., ..., '__bbox', 'result', 'data'), expected_type=dict) or []
-            media = traverse_obj(post, (..., 'attachments', ..., lambda k, v: (
-                k == 'media' and str(v['id']) == video_id and v['__typename'] == 'Video')), expected_type=dict)
+            media = traverse_obj(post, (media_selector, 'attachments', ..., lambda k, v: (
+                k == 'media' and v['__typename'] == 'Video' and (video_id is None or str(v['id']) == video_id))), expected_type=dict)
             title = get_first(media, ('title', 'text'))
             description = get_first(media, ('creation_story', 'comet_sections', 'message', 'story', 'message', 'text'))
             page_title = title or self._html_search_regex((
@@ -964,6 +968,48 @@ class FacebookReelIE(InfoExtractor):
         video_id = self._match_id(url)
         return self.url_result(
             f'https://m.facebook.com/watch/?v={video_id}&_rdr', FacebookIE, video_id)
+
+
+class FacebookStoryIE(FacebookIE):
+    _VALID_URL = r'https?://(?:[\w-]+\.)?facebook\.com/stories/(?P<bucket_id>\d+)/(?P<story_id>[A-Za-z0-9+/]+=*)'
+
+    IE_NAME = 'facebook:story'
+
+    _TESTS = [{
+        'url': 'https://www.facebook.com/stories/12345/ABCdef==',
+        'md5': 'a53256d10fc2105441fe0c4212ed8cea',
+        'info_dict': {
+            'id': '1195289147628387',
+            'ext': 'mp4',
+            'title': r're:9\.6K views · 355 reactions .+ Let the “Slapathon” commence!! .+ LL COOL J · Mama Said Knock You Out$',
+            'description': r're:When your trying to help your partner .+ LL COOL J · Mama Said Knock You Out$',
+            'uploader': 'Beast Camp Training',
+            'uploader_id': '100040874179269',
+            'duration': 9.579,
+            'timestamp': 1637502609,
+            'upload_date': '20211121',
+            'thumbnail': r're:^https?://.*',
+            'like_count': int,
+            'comment_count': int,
+            'repost_count': int,
+        },
+    }]
+
+    def _extract_from_url(self, url):
+        video_id = self._match_id(url)
+        story_id = self._match_story_id(url)
+        return super()._extract_from_url(url, video_id, story_id)
+
+    @classmethod
+    def _match_story_id(cls, url):
+        return cls._match_valid_url(url).group('story_id')
+
+    @classmethod
+    def get_temp_id(cls, url):
+        try:
+            return cls._match_story_id(url)
+        except (IndexError, AttributeError):
+            return None
 
 
 class FacebookAdsIE(InfoExtractor):
