@@ -971,7 +971,7 @@ class FacebookReelIE(InfoExtractor):
 
 
 class FacebookStoryIE(FacebookIE):
-    _VALID_URL = r'https?://(?:[\w-]+\.)?facebook\.com/stories/(?P<bucket_id>\d+)/(?P<story_id>[A-Za-z0-9+/]+=*)'
+    _VALID_URL = r'https?://(?:[\w-]+\.)?facebook\.com/stories/(?P<bucket_id>\d+)/(?P<id>[A-Za-z0-9+/]+=*)'
 
     IE_NAME = 'facebook:story'
 
@@ -996,20 +996,8 @@ class FacebookStoryIE(FacebookIE):
     }]
 
     def _extract_from_url(self, url):
-        video_id = self._match_id(url)
-        story_id = self._match_story_id(url)
-        return super()._extract_from_url(url, video_id, story_id)
-
-    @classmethod
-    def _match_story_id(cls, url):
-        return cls._match_valid_url(url).group('story_id')
-
-    @classmethod
-    def get_temp_id(cls, url):
-        try:
-            return cls._match_story_id(url)
-        except (IndexError, AttributeError):
-            return None
+        story_id = self._match_id(url)
+        return super()._extract_from_url(url, story_id=story_id)
 
 
 class FacebookAdsIE(InfoExtractor):
