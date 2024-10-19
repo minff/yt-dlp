@@ -1127,32 +1127,46 @@ class FacebookStoryIE(FacebookIE):
     }]
 
     def _real_extract(self, url):
-        pass
-        # # stories extract
-        # entries = []
-        # data = self.extract_relay_prefetched_data(video_id, webpage,
-        #                                           r'"(?:dash_manifest|playable_url(?:_quality_hd)?)',
-        #                                           target_keys=('bucket',))
-        # nodes = variadic(traverse_obj(data, ('bucket', 'unified_stories', 'edges')) or [])
-        # attachments = traverse_obj(nodes, (..., 'node', 'attachments', ..., {dict}))
-        # for attachment in attachments:
-        #     parse_attachment(attachment, entries)
-        #
-        # if not entries:
-        #     return super()._real_extract(url)
-        #
-        # if len(entries) > 1:
-        #     return self.playlist_result(entries, video_id)
-        # video_info = entries[0] if entries else {'id': video_id}
-        # webpage_info = self.extract_metadata(video_id, webpage)
-        # # honor precise duration in video info
-        # if video_info.get('duration'):
-        #     webpage_info['duration'] = video_info['duration']
-        # # preserve preferred_thumbnail in video info
-        # if video_info.get('thumbnail'):
-        #     webpage_info['thumbnail'] = video_info['thumbnail']
-        #
+        story_id = self._match_id(url)
+        result = self._extract_story(url, story_id)
+        if not result:
+            return self._extract_from_url(url, story_id)
+
+    def _extract_story(self, url, story_id):
+        # stories extract
+        webpage = self._download_webpage(
+            url.replace('://m.facebook.com/', '://www.facebook.com/'), story_id)
+        return self._extract_story_from_webpage(webpage, story_id)
+
+    def _extract_story_from_webpage(self, webpage, story_id):
+        # stories extract
+        entries = []
+        data = self.extract_relay_prefetched_data(story_id, webpage,
+                                                  r'"(?:dash_manifest|playable_url(?:_quality_hd)?)',
+                                                  target_keys=('bucket',))
+        nodes = variadic(traverse_obj(data, ('bucket', 'unified_stories', 'edges')) or [])
+        attachments = traverse_obj(nodes, (..., 'node', 'attachments', ..., {dict}))
+        for attachment in attachments:
+            self.parse_attachment(attachment, entries)
+
+        if not len(entries):
+            return {}
+
+        video_info = entries[0]
+        video_id = video_info['id']
+
+        if len(entries) > 1:
+            return self.playlist_result(entries, video_id)
+
+        webpage_info = self.extract_metadata(video_id, webpage)
+
+        # honor precise duration in video info
+        if video_info.get('duration'):
+            webpage_info['duration'] = video_info['duration']
+        # preserve preferred_thumbnail in video info
+        if video_info.get('thumbnail'):
+            webpage_info['thumbnail'] = video_info['thumbnail']
+
         # print('webpage_info', webpage_info)
         # print('video_info', video_info)
-        # return merge_dicts(webpage_info, video_info)
-        # # stories extract END
+        return merge_dicts(webpage_info, video_info)
