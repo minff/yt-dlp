@@ -781,6 +781,48 @@ class FacebookIE(InfoExtractor):
         media = attachment.get(key) or {}
         if media.get('__typename') == 'Video':
             return self.parse_graphql_video(media, video_id, webpage, entries)
+        elif media.get('__typename') == 'Photo':
+            return self.parse_graphql_photo(media, video_id, webpage, entries)
+
+    def parse_graphql_photo(self, video, video_id, webpage, entries):
+        v_id = video.get('videoId') or video.get('id') or video_id
+        video_id = v_id
+        img_url = traverse_obj(video, ('image', 'uri'))
+        width = traverse_obj(video, ('image', 'width'))
+        height = traverse_obj(video, ('image', 'height'))
+        ext = determine_ext(img_url)
+        formats = [
+            {
+                'format_id': 'hd',
+                'url': img_url,
+                'ext': ext,
+                'width': width,
+                'height': height,
+            },
+        ]
+
+        info = {
+            'id': v_id,
+            'formats': formats,
+            'thumbnail': traverse_obj(
+                video, ('previewImage', 'uri')),
+            'uploader_id': traverse_obj(video, ('owner', 'id', {str_or_none})),
+            'timestamp': traverse_obj(video, 'publish_time', 'creation_time', expected_type=int_or_none),
+            'duration': (float_or_none(video.get('playable_duration_in_ms'), 1000)
+                         or float_or_none(video.get('length_in_second'))),
+        }
+        self.process_formats(info)
+        # TODO: get correct description, title
+        description = try_get(video, lambda x: x['savable_description']['text'])
+        title = video.get('name')
+        if title:
+            info.update({
+                'title': title,
+                'description': description,
+            })
+        else:
+            info['title'] = description or f'Facebook photo #{v_id}'
+        entries.append(info)
 
     def parse_graphql_video(self, video, video_id, webpage, entries):
         v_id = video.get('videoId') or video.get('id') or video_id
@@ -1151,7 +1193,7 @@ class FacebookStoryIE(FacebookIE):
         # stories extract
         entries = []
         data = self.extract_relay_prefetched_data(story_id, webpage,
-                                                  r'"(?:dash_manifest|playable_url(?:_quality_hd)?)',
+                                                  r'"(?:dash_manifest|unified_stories|playable_url(?:_quality_hd)?)',
                                                   target_keys=('bucket',))
         nodes = variadic(traverse_obj(data, ('bucket', 'unified_stories', 'edges')) or [])
         attachments = traverse_obj(nodes, (..., 'node', 'attachments', ..., {dict}))
@@ -1167,6 +1209,7 @@ class FacebookStoryIE(FacebookIE):
         if len(entries) > 1:
             return self.playlist_result(entries, video_id)
 
+        # TODO: get correct description, title (video, photo)
         webpage_info = self.extract_metadata(webpage, video_id)
 
         # honor precise duration in video info
