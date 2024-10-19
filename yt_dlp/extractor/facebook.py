@@ -1099,3 +1099,60 @@ class FacebookAdsIE(InfoExtractor):
         info_dict['id'] = video_id
 
         return info_dict
+
+
+class FacebookStoryIE(FacebookIE):
+    _VALID_URL = r'https?://(?:[\w-]+\.)?facebook\.com/stories/(?P<bucket_id>\d+)/(?P<id>[A-Za-z0-9+/]+=*)'
+
+    IE_NAME = 'facebook:story'
+
+    _TESTS = [{
+        'url': 'https://www.facebook.com/stories/12345/ABCdef==',
+        'md5': 'a53256d10fc2105441fe0c4212ed8cea',
+        'info_dict': {
+            'id': '1195289147628387',
+            'ext': 'mp4',
+            'title': r're:9\.6K views · 355 reactions .+ Let the “Slapathon” commence!! .+ LL COOL J · Mama Said Knock You Out$',
+            'description': r're:When your trying to help your partner .+ LL COOL J · Mama Said Knock You Out$',
+            'uploader': 'Beast Camp Training',
+            'uploader_id': '100040874179269',
+            'duration': 9.579,
+            'timestamp': 1637502609,
+            'upload_date': '20211121',
+            'thumbnail': r're:^https?://.*',
+            'like_count': int,
+            'comment_count': int,
+            'repost_count': int,
+        },
+    }]
+
+    def _real_extract(self, url):
+        pass
+        # # stories extract
+        # entries = []
+        # data = self.extract_relay_prefetched_data(video_id, webpage,
+        #                                           r'"(?:dash_manifest|playable_url(?:_quality_hd)?)',
+        #                                           target_keys=('bucket',))
+        # nodes = variadic(traverse_obj(data, ('bucket', 'unified_stories', 'edges')) or [])
+        # attachments = traverse_obj(nodes, (..., 'node', 'attachments', ..., {dict}))
+        # for attachment in attachments:
+        #     parse_attachment(attachment, entries)
+        #
+        # if not entries:
+        #     return super()._real_extract(url)
+        #
+        # if len(entries) > 1:
+        #     return self.playlist_result(entries, video_id)
+        # video_info = entries[0] if entries else {'id': video_id}
+        # webpage_info = self.extract_metadata(video_id, webpage)
+        # # honor precise duration in video info
+        # if video_info.get('duration'):
+        #     webpage_info['duration'] = video_info['duration']
+        # # preserve preferred_thumbnail in video info
+        # if video_info.get('thumbnail'):
+        #     webpage_info['thumbnail'] = video_info['thumbnail']
+        #
+        # print('webpage_info', webpage_info)
+        # print('video_info', video_info)
+        # return merge_dicts(webpage_info, video_info)
+        # # stories extract END
