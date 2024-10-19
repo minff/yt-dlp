@@ -725,14 +725,17 @@ class FacebookIE(InfoExtractor):
             k == 'media' and str(v['id']) == video_id and v['__typename'] == 'Video')), expected_type=dict)
         title = get_first(media, ('title', 'text'))
         description = get_first(media, ('creation_story', 'comet_sections', 'message', 'story', 'message', 'text'))
+        video_title = get_first(post, ('video', 'creation_story', 'message', 'text'))
         page_title = title or self._html_search_regex((
             r'<h2\s+[^>]*class="uiHeaderTitle"[^>]*>(?P<content>[^<]*)</h2>',
             r'(?s)<span class="fbPhotosPhotoCaption".*?id="fbPhotoPageCaption"><span class="hasCaption">(?P<content>.*?)</span>',
             self._meta_regex('og:title'), self._meta_regex('twitter:title'), r'<title>(?P<content>.+?)</title>',
         ), webpage, 'title', default=None, group='content')
+        if page_title.lower().strip() == 'facebook':
+            page_title = video_title
         description = description or self._html_search_meta(
             ['description', 'og:description', 'twitter:description'],
-            webpage, 'description', default=None)
+            webpage, 'description', default=None) or video_title
         uploader_data = (
             get_first(media, ('owner', {dict}))
             or get_first(post, ('video', 'creation_story', 'attachments', ..., 'media', lambda k, v: k == 'owner' and v['name']))
