@@ -703,6 +703,7 @@ class FacebookIE(InfoExtractor):
             self.to_screen(f'{video_id}: Extracting failed. Try again with cookie')
             video_info = self._extract_from_url(real_url, video_id)
             info = merge_dicts(info, video_info)
+        self.to_screen(f'{info.get("id") or video_id}: Extracted info: {json.dumps(info)}')
         return info
 
     # utils
