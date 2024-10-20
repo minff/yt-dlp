@@ -1203,8 +1203,8 @@ class FacebookStoryIE(FacebookIE):
 
     # extract story
 
-    def _extract_from_url(self, url, story_id):
-        webpage = self._download_webpage(url, story_id)
+    def _extract_from_url(self, url_or_request, story_id):
+        webpage = self._download_webpage(url_or_request, story_id)
         return self._extract_story_from_webpage(webpage, story_id)
 
     def _extract_story_from_webpage(self, webpage, story_id):
