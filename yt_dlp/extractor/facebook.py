@@ -476,9 +476,12 @@ class FacebookIE(InfoExtractor):
             self.report_warning(f'unable to log in: {err}')
             return
 
-    def _extract_from_url(self, url, video_id):
-        webpage = self._download_webpage(
-            url.replace('://m.facebook.com/', '://www.facebook.com/'), video_id)
+    def _extract_from_public_url(self, url, video_id):
+        return self._extract_from_url(Request(url, extensions={'cookiejar': YoutubeDLCookieJar()}), video_id)
+
+    def _extract_from_url(self, url_or_request, video_id):
+        webpage = self._download_webpage(url_or_request, video_id)
+        url = url_or_request.url if isinstance(url_or_request, Request) else url_or_request
 
         video_data = None
 
@@ -692,23 +695,15 @@ class FacebookIE(InfoExtractor):
     def _real_extract(self, url):
         video_id = self._match_id(url)
 
-        real_url = self._VIDEO_PAGE_TEMPLATE % video_id if url.startswith('facebook:') else url
-        video_info = self._extract_from_url(real_url, video_id)
+        real_url = self._VIDEO_PAGE_TEMPLATE % video_id if url.startswith('facebook:') else url.replace('://m.facebook.com/', '://www.facebook.com/')
 
-        public_webpage_info = self._extract_public_info(real_url, video_id)
-        return merge_dicts(public_webpage_info, video_info)
-
-    def _extract_public_info(self, url, video_id):
-        public_webpage_info = {}
-        public_webpage = self._download_webpage(Request(url, extensions={'cookiejar': YoutubeDLCookieJar()}), video_id)
-        public_url = self._html_search_regex((
-            self._meta_regex('og:url'),
-            r'<link rel="canonical".*href="(?P<content>.+?)">',
-            r'<noscript>.*URL=(?P<content>.+?)".*</noscript>',
-        ), public_webpage, 'url', default=None, group='content')
-        if public_url and 'login' not in public_url:
-            public_webpage_info = self.extract_metadata(public_webpage, video_id)
-        return public_webpage_info
+        self.to_screen(f'{video_id}: Extracting without cookie')
+        info = self._extract_from_public_url(real_url, video_id)
+        if not info or not info.get('id') and self._cookies_passed:
+            self.to_screen(f'{video_id}: Extracting failed. Try again with cookie')
+            video_info = self._extract_from_url(real_url, video_id)
+            info = merge_dicts(info, video_info)
+        return info
 
     # utils
 
@@ -1195,22 +1190,18 @@ class FacebookStoryIE(FacebookIE):
 
     def _real_extract(self, url):
         story_id = self._match_id(url)
-        result = self._extract_story(url, story_id)
-        if not result:
-            return self._extract_from_url(url, story_id)
-        return result
+        info = super()._real_extract(url)
+
+        if not info or not info.get('id'):
+            self.to_screen(f'{story_id}: Extracting failed. Try again with {FacebookIE.__name__}')
+            return self.url_result(url, FacebookIE.ie_key())
+        return info
 
     # extract story
 
-    def _extract_story(self, url, story_id):
-        # stories extract
-        real_url = url.replace('://m.facebook.com/', '://www.facebook.com/')
-        webpage = self._download_webpage(real_url, story_id)
-        video_info = self._extract_story_from_webpage(webpage, story_id)
-
-        video_id = video_info.get('id')
-        public_webpage_info = self._extract_public_info(real_url, video_id or story_id)
-        return merge_dicts(public_webpage_info, video_info)
+    def _extract_from_url(self, url, story_id):
+        webpage = self._download_webpage(url, story_id)
+        return self._extract_story_from_webpage(webpage, story_id)
 
     def _extract_story_from_webpage(self, webpage, story_id):
         # stories extract
