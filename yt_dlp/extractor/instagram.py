@@ -704,7 +704,11 @@ class InstagramStoryIE(InstagramBaseIE):
     def _real_extract(self, url):
         username, story_id = self._match_valid_url(url).groups()
         story_info = self._download_webpage(url, story_id)
-        user_info = self._search_json(r'"user":', story_info, 'user info', story_id, fatal=False)
+        user_info = self._search_json(r'(?:\\"|")user(?:\\"|"):', story_info, 'user info', story_id,
+                                      fatal=False, encoding='utf-8',
+                                      contains_pattern=fr'{{(?:.+{story_id}.+)}}',
+                                      transform_source=lambda s: re.sub(r'\\(.)', r'\1', s),
+                                      )
         if not user_info:
             self.raise_login_required('This content is unreachable')
 
