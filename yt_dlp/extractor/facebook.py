@@ -729,9 +729,9 @@ class FacebookIE(InfoExtractor):
         page_title = title or self._html_search_regex((
             r'<h2\s+[^>]*class="uiHeaderTitle"[^>]*>(?P<content>[^<]*)</h2>',
             r'(?s)<span class="fbPhotosPhotoCaption".*?id="fbPhotoPageCaption"><span class="hasCaption">(?P<content>.*?)</span>',
-            self._meta_regex('og:title'), self._meta_regex('twitter:title'), r'<title>(?P<content>.+?)</title>',
+            self._meta_regex('og:title'), self._meta_regex('twitter:title'), r'<title.*>(?P<content>.+?)</title>',
         ), webpage, 'title', default=None, group='content')
-        if page_title.lower().strip() == 'facebook':
+        if (not page_title or page_title.lower().strip() == 'facebook') and video_title:
             page_title = video_title
         description = description or self._html_search_meta(
             ['description', 'og:description', 'twitter:description'],
