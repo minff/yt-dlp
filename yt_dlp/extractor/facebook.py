@@ -4,6 +4,7 @@ import urllib.parse
 
 from .common import InfoExtractor
 from ..compat import compat_etree_fromstring
+from ..cookies import YoutubeDLCookieJar
 from ..networking import Request
 from ..networking.exceptions import network_exceptions
 from ..utils import (
@@ -692,7 +693,22 @@ class FacebookIE(InfoExtractor):
         video_id = self._match_id(url)
 
         real_url = self._VIDEO_PAGE_TEMPLATE % video_id if url.startswith('facebook:') else url
-        return self._extract_from_url(real_url, video_id)
+        video_info = self._extract_from_url(real_url, video_id)
+
+        public_webpage_info = self._extract_public_info(real_url, video_id)
+        return merge_dicts(public_webpage_info, video_info)
+
+    def _extract_public_info(self, url, video_id):
+        public_webpage_info = {}
+        public_webpage = self._download_webpage(Request(url, extensions={'cookiejar': YoutubeDLCookieJar()}), video_id)
+        public_url = self._html_search_regex((
+            self._meta_regex('og:url'),
+            r'<link rel="canonical".*href="(?P<content>.+?)">',
+            r'<noscript>.*URL=(?P<content>.+?)".*</noscript>',
+        ), public_webpage, 'url', default=None, group='content')
+        if public_url and 'login' not in public_url:
+            public_webpage_info = self.extract_metadata(public_webpage, video_id)
+        return public_webpage_info
 
     # utils
 
@@ -1188,9 +1204,13 @@ class FacebookStoryIE(FacebookIE):
 
     def _extract_story(self, url, story_id):
         # stories extract
-        webpage = self._download_webpage(
-            url.replace('://m.facebook.com/', '://www.facebook.com/'), story_id)
-        return self._extract_story_from_webpage(webpage, story_id)
+        real_url = url.replace('://m.facebook.com/', '://www.facebook.com/')
+        webpage = self._download_webpage(real_url, story_id)
+        video_info = self._extract_story_from_webpage(webpage, story_id)
+
+        video_id = video_info.get('id')
+        public_webpage_info = self._extract_public_info(real_url, video_id or story_id)
+        return merge_dicts(public_webpage_info, video_info)
 
     def _extract_story_from_webpage(self, webpage, story_id):
         # stories extract
