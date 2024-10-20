@@ -742,8 +742,6 @@ class FacebookIE(InfoExtractor):
             r'(?s)<span class="fbPhotosPhotoCaption".*?id="fbPhotoPageCaption"><span class="hasCaption">(?P<content>.*?)</span>',
             self._meta_regex('og:title'), self._meta_regex('twitter:title'), r'<title.*>(?P<content>.+?)</title>',
         ), webpage, 'title', default=None, group='content')
-        if (not page_title or page_title.lower().strip() == 'facebook') and video_title:
-            page_title = video_title
         description = description or self._html_search_meta(
             ['description', 'og:description', 'twitter:description'],
             webpage, 'description', default=None) or video_title
@@ -789,8 +787,12 @@ class FacebookIE(InfoExtractor):
         }
 
         info_json_ld = self._search_json_ld(webpage, video_id, default={})
-        info_json_ld['title'] = (re.sub(r'\s*\|\s*Facebook$', '', title or info_json_ld.get('title') or page_title or '')
-                                 or (description or '').replace('\n', ' ') or f'Facebook video #{video_id}')
+        info_json_ld['title'] = (
+            re.sub(r'\s*(Facebook|\|)?$', '', title or info_json_ld.get('title') or page_title or '')
+            or video_title
+            or (description or '').replace('\n', ' ')
+            # or f'Facebook video #{video_id}'
+        )
         return merge_dicts(info_json_ld, info_dict)
 
     def parse_attachment(self, attachment, video_id, webpage, entries, key='media'):
