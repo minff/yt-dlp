@@ -708,11 +708,22 @@ class FacebookIE(InfoExtractor):
     # utils
 
     def extract_dash_manifest(self, video, formats):
-        dash_manifest = traverse_obj(video, 'dash_manifest', 'playlist', expected_type=str)
+        dash_manifest = traverse_obj(
+            video, 'dash_manifest', 'playlist', 'dash_manifest_xml_string', expected_type=str)
         if dash_manifest:
             formats.extend(self._parse_mpd_formats(
                 compat_etree_fromstring(urllib.parse.unquote_plus(dash_manifest)),
-                mpd_url=video.get('dash_manifest_url')))
+                mpd_url=url_or_none(video.get('dash_manifest_url'))))
+
+    def process_formats(self, info):
+        # Downloads with browser's User-Agent are rate limited. Working around
+        # with non-browser User-Agent.
+        for f in info['formats']:
+            # Downloads with browser's User-Agent are rate limited. Working around
+            # with non-browser User-Agent.
+            f.setdefault('http_headers', {})['User-Agent'] = 'facebookexternalhit/1.1'
+            # Formats larger than ~500MB will return error 403 unless chunk size is regulated
+            f.setdefault('downloader_options', {})['http_chunk_size'] = 250 << 20
 
     def yield_all_relay_data(self, video_id, webpage, _filter):
         for relay_data in re.findall(rf'data-sjs>({{.*?{_filter}.*?}})</script>', webpage):
@@ -851,12 +862,13 @@ class FacebookIE(InfoExtractor):
             video = video['creation_story']
             video['owner'] = traverse_obj(video, ('short_form_video_context', 'video_owner'))
             video.update(reel_info)
+        fmt_data = traverse_obj(video, ('videoDeliveryLegacyFields', {dict})) or video
         formats = []
         q = qualities(['sd', 'hd'])
         for key, format_id in (('playable_url', 'sd'), ('playable_url_quality_hd', 'hd'),
                                ('playable_url_dash', ''), ('browser_native_hd_url', 'hd'),
                                ('browser_native_sd_url', 'sd')):
-            playable_url = video.get(key)
+            playable_url = fmt_data.get(key)
             if not playable_url:
                 continue
             if determine_ext(playable_url) == 'mpd':
@@ -868,7 +880,7 @@ class FacebookIE(InfoExtractor):
                     'quality': q(format_id) - 3,
                     'url': playable_url,
                 })
-        self.extract_dash_manifest(video, formats)
+        self.extract_dash_manifest(fmt_data, formats)
         if not formats:
             # Do not append false positive entry w/o any formats
             return
@@ -918,16 +930,6 @@ class FacebookIE(InfoExtractor):
         else:
             info['title'] = description or f'Facebook video #{v_id}'
         entries.append(info)
-
-    def process_formats(self, info):
-        # Downloads with browser's User-Agent are rate limited. Working around
-        # with non-browser User-Agent.
-        for f in info['formats']:
-            # Downloads with browser's User-Agent are rate limited. Working around
-            # with non-browser User-Agent.
-            f.setdefault('http_headers', {})['User-Agent'] = 'facebookexternalhit/1.1'
-            # Formats larger than ~500MB will return error 403 unless chunk size is regulated
-            f.setdefault('downloader_options', {})['http_chunk_size'] = 250 << 20
 
     # utils END
 
