@@ -444,6 +444,7 @@ The only reliable way to check if a site is supported is to try it.
  - **facebook**: [*facebook*](## "netrc machine")
  - **facebook:ads**
  - **facebook:reel**
+ - **facebook:story**: [*facebook*](## "netrc machine")
  - **FacebookPluginsVideo**
  - **fancode:live**: [*fancode*](## "netrc machine") (**Currently broken**)
  - **fancode:vod**: [*fancode*](## "netrc machine") (**Currently broken**)
