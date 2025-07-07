@@ -823,6 +823,8 @@ class FacebookIE(InfoExtractor):
         width = traverse_obj(video, ('image', 'width'))
         height = traverse_obj(video, ('image', 'height'))
         ext = determine_ext(img_url)
+        if not img_url:
+            return
         formats = [
             {
                 'format_id': 'hd',
@@ -1242,7 +1244,8 @@ class FacebookStoryIE(FacebookIE):
         data = self.extract_relay_prefetched_data(story_id, webpage,
                                                   r'"(?:dash_manifest|unified_stories|playable_url(?:_quality_hd)?)',
                                                   target_keys=('bucket',))
-        nodes = variadic(traverse_obj(data, ('bucket', 'unified_stories', 'edges')) or [])
+        # nodes = variadic(traverse_obj(data, ('bucket', lambda k, v: 'unified_stories' in k, 'edges', ...)) or []) # unified_stories_with_notes, unified_stories, unified_stories_buckets
+        nodes = variadic(traverse_obj(data, ('bucket', ..., 'edges', ...)) or [])  # explore more paths
         attachments = traverse_obj(nodes, (..., 'node', 'attachments', ..., {dict}))
         for attachment in attachments:
             self.parse_attachment(attachment, story_id, webpage, entries)
