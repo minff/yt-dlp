@@ -1199,28 +1199,54 @@ class FacebookAdsIE(InfoExtractor):
 
 
 class FacebookStoryIE(FacebookIE):
-    _VALID_URL = r'https?://(?:[\w-]+\.)?facebook\.com/stories/(?P<bucket_id>\d+)/(?P<id>[A-Za-z0-9+/]+=*)'
+    """Facebook Story InfoExtractor.
+
+
+    Test parameters `test/local_parameters.json`:
+
+    .. code-block:: json
+
+        {
+            "cookiefile": "cookies-fb"
+        }
+
+    Test usage:
+
+    .. code-block:: bash
+
+        hatch test FacebookStory -- --pytest-args="-vvv -s"
+
+    """
+    _VALID_URL = r'''(?x)
+                (?:
+                    https?://(?:[\w-]+\.)?facebook\.com/stories/|
+                    facebook:story:
+                )
+                (?P<id>\d+)
+                '''
+
+    _VIDEO_PAGE_TEMPLATE = 'https://www.facebook.com/stories/%s/'
 
     IE_NAME = 'facebook:story'
 
     _TESTS = [{
-        'url': 'https://www.facebook.com/stories/12345/ABCdef==',
-        'md5': 'a53256d10fc2105441fe0c4212ed8cea',
+        'url': 'https://www.facebook.com/stories/622429879470305/ABCdef==',
+        'md5': '4a24dbb1c66a2c562d0eb1615578c973',
         'info_dict': {
-            'id': '1195289147628387',
+            'id': '630299841986231',
             'ext': 'mp4',
-            'title': r're:9\.6K views · 355 reactions .+ Let the “Slapathon” commence!! .+ LL COOL J · Mama Said Knock You Out$',
-            'description': r're:When your trying to help your partner .+ LL COOL J · Mama Said Knock You Out$',
-            'uploader': 'Beast Camp Training',
-            'uploader_id': '100040874179269',
-            'duration': 9.579,
-            'timestamp': 1637502609,
-            'upload_date': '20211121',
+            'title': 'Facebook video #630299841986231',
+            'timestamp': 1664285737,
+            'upload_date': '20220927',
             'thumbnail': r're:^https?://.*',
-            'like_count': int,
-            'comment_count': int,
-            'repost_count': int,
+            'playlist_count': 3,
+            'playlist_id': '630299841986231',
+            'extractor': 'facebook:story',
+            'extractor_key': 'FacebookStory',
         },
+    }, {
+        'url': 'facebook:story:622429879470305',
+        'only_matching': True,
     }]
 
     def _real_extract(self, url):
