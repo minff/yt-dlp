@@ -51,7 +51,7 @@ class FacebookIE(InfoExtractor):
                             [^/]+/videos/(?:[^/]+/)?|
                             [^/]+/posts/|
                             events/(?:[^/]+/)?|
-                            groups/[^/]+/(?:permalink|posts)/|
+                            groups/[^/]+/(?:permalink|posts)/(?:[\da-f]+/)?|
                             watchparty/
                         )|
                     facebook:
@@ -411,6 +411,9 @@ class FacebookIE(InfoExtractor):
             'uploader': 'Comitato Liberi Pensatori',
             'uploader_id': '100065709540881',
         },
+    }, {
+        'url': 'https://www.facebook.com/groups/1513990329015294/posts/d41d8cd9/2013209885760000/?app=fbl',
+        'only_matching': True,
     }]
     _SUPPORTED_PAGLETS_REGEX = r'(?:pagelet_group_mall|permalink_video_pagelet|hyperfeed_story_id_[0-9a-f]+)'
     _api_config = {
@@ -699,7 +702,7 @@ class FacebookIE(InfoExtractor):
 
         self.to_screen(f'{video_id}: Extracting without cookie')
         info = self._extract_from_public_url(real_url, video_id)
-        if not info or not info.get('id') and self._cookies_passed:
+        if not info or (not info.get('id') and self._cookies_passed):
             self.to_screen(f'{video_id}: Extracting failed. Try again with cookie')
             video_info = self._extract_from_url(real_url, video_id)
             info = merge_dicts(info, video_info)
@@ -1244,7 +1247,7 @@ class FacebookStoryIE(FacebookIE):
         for attachment in attachments:
             self.parse_attachment(attachment, story_id, webpage, entries)
 
-        if not len(entries):
+        if not entries:
             return {}
 
         video_info = entries[0]

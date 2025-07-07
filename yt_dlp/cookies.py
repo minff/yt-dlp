@@ -25,7 +25,6 @@ from .aes import (
     aes_gcm_decrypt_and_verify_bytes,
     unpad_pkcs7,
 )
-from .compat import compat_os_name
 from .dependencies import (
     _SECRETSTORAGE_UNAVAILABLE_REASON,
     secretstorage,
@@ -196,7 +195,10 @@ def _extract_firefox_cookies(profile, container, logger):
 
 def _firefox_browser_dirs():
     if sys.platform in ('cygwin', 'win32'):
-        yield os.path.expandvars(R'%APPDATA%\Mozilla\Firefox\Profiles')
+        yield from map(os.path.expandvars, (
+            R'%APPDATA%\Mozilla\Firefox\Profiles',
+            R'%LOCALAPPDATA%\Packages\Mozilla.Firefox_n80bbvh6b1yt2\LocalCache\Roaming\Mozilla\Firefox\Profiles',
+        ))
 
     elif sys.platform == 'darwin':
         yield os.path.expanduser('~/Library/Application Support/Firefox/Profiles')
@@ -343,7 +345,7 @@ def _extract_chrome_cookies(browser_name, profile, keyring, logger):
             logger.debug(f'cookie version breakdown: {counts}')
             return jar
         except PermissionError as error:
-            if compat_os_name == 'nt' and error.errno == 13:
+            if os.name == 'nt' and error.errno == 13:
                 message = 'Could not copy Chrome cookie database. See  https://github.com/yt-dlp/yt-dlp/issues/7271  for more info'
                 logger.error(message)
                 raise DownloadError(message)  # force exit
@@ -762,11 +764,11 @@ def _get_linux_desktop_environment(env, logger):
     GetDesktopEnvironment
     """
     xdg_current_desktop = env.get('XDG_CURRENT_DESKTOP', None)
-    desktop_session = env.get('DESKTOP_SESSION', None)
+    desktop_session = env.get('DESKTOP_SESSION', '')
     if xdg_current_desktop is not None:
         for part in map(str.strip, xdg_current_desktop.split(':')):
             if part == 'Unity':
-                if desktop_session is not None and 'gnome-fallback' in desktop_session:
+                if 'gnome-fallback' in desktop_session:
                     return _LinuxDesktopEnvironment.GNOME
                 else:
                     return _LinuxDesktopEnvironment.UNITY
@@ -795,35 +797,34 @@ def _get_linux_desktop_environment(env, logger):
                 return _LinuxDesktopEnvironment.UKUI
             elif part == 'LXQt':
                 return _LinuxDesktopEnvironment.LXQT
-        logger.info(f'XDG_CURRENT_DESKTOP is set to an unknown value: "{xdg_current_desktop}"')
+        logger.debug(f'XDG_CURRENT_DESKTOP is set to an unknown value: "{xdg_current_desktop}"')
 
-    elif desktop_session is not None:
-        if desktop_session == 'deepin':
-            return _LinuxDesktopEnvironment.DEEPIN
-        elif desktop_session in ('mate', 'gnome'):
-            return _LinuxDesktopEnvironment.GNOME
-        elif desktop_session in ('kde4', 'kde-plasma'):
+    if desktop_session == 'deepin':
+        return _LinuxDesktopEnvironment.DEEPIN
+    elif desktop_session in ('mate', 'gnome'):
+        return _LinuxDesktopEnvironment.GNOME
+    elif desktop_session in ('kde4', 'kde-plasma'):
+        return _LinuxDesktopEnvironment.KDE4
+    elif desktop_session == 'kde':
+        if 'KDE_SESSION_VERSION' in env:
             return _LinuxDesktopEnvironment.KDE4
-        elif desktop_session == 'kde':
-            if 'KDE_SESSION_VERSION' in env:
-                return _LinuxDesktopEnvironment.KDE4
-            else:
-                return _LinuxDesktopEnvironment.KDE3
-        elif 'xfce' in desktop_session or desktop_session == 'xubuntu':
-            return _LinuxDesktopEnvironment.XFCE
-        elif desktop_session == 'ukui':
-            return _LinuxDesktopEnvironment.UKUI
         else:
-            logger.info(f'DESKTOP_SESSION is set to an unknown value: "{desktop_session}"')
-
+            return _LinuxDesktopEnvironment.KDE3
+    elif 'xfce' in desktop_session or desktop_session == 'xubuntu':
+        return _LinuxDesktopEnvironment.XFCE
+    elif desktop_session == 'ukui':
+        return _LinuxDesktopEnvironment.UKUI
     else:
-        if 'GNOME_DESKTOP_SESSION_ID' in env:
-            return _LinuxDesktopEnvironment.GNOME
-        elif 'KDE_FULL_SESSION' in env:
-            if 'KDE_SESSION_VERSION' in env:
-                return _LinuxDesktopEnvironment.KDE4
-            else:
-                return _LinuxDesktopEnvironment.KDE3
+        logger.debug(f'DESKTOP_SESSION is set to an unknown value: "{desktop_session}"')
+
+    if 'GNOME_DESKTOP_SESSION_ID' in env:
+        return _LinuxDesktopEnvironment.GNOME
+    elif 'KDE_FULL_SESSION' in env:
+        if 'KDE_SESSION_VERSION' in env:
+            return _LinuxDesktopEnvironment.KDE4
+        else:
+            return _LinuxDesktopEnvironment.KDE3
+
     return _LinuxDesktopEnvironment.OTHER
 
 
@@ -1277,8 +1278,8 @@ class YoutubeDLCookieJar(http.cookiejar.MozillaCookieJar):
     def _really_save(self, f, ignore_discard, ignore_expires):
         now = time.time()
         for cookie in self:
-            if (not ignore_discard and cookie.discard
-                    or not ignore_expires and cookie.is_expired(now)):
+            if ((not ignore_discard and cookie.discard)
+                    or (not ignore_expires and cookie.is_expired(now))):
                 continue
             name, value = cookie.name, cookie.value
             if value is None:
